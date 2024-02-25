@@ -98,6 +98,8 @@ def image_processing_thread(memoryBeat):
     global image_queue
     global width, height
     
+    gameOver = False
+    
     while True:
         try:
             data, sid = image_queue.get()
@@ -108,8 +110,14 @@ def image_processing_thread(memoryBeat):
             
             # image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
             
-            # print(width, height) 
-            processed_image = memoryBeat.process_frame(image, width, height)
+            # print(width, height)
+            gameOver = memoryBeat.gameOver()
+            
+            if(gameOver==False):
+                processed_image = memoryBeat.process_frame(image, width, height)
+            else:
+                processed_image = memoryBeat.gameOverScreen(image, width, height)
+                
             retval, buffer = cv2.imencode('.jpg', processed_image)
             encoded_image = base64.b64encode(buffer).decode('utf-8')
             
