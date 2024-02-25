@@ -1,5 +1,5 @@
 # server.py
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import base64
 import io
@@ -40,6 +40,11 @@ socketio = SocketIO(app)
 def index():
     # 메인 페이지 렌더링
     return render_template('index.html')
+
+@app.route('/api/combo', methods=['GET'])
+def get_combo():
+    combo = memoryBeat.get_combo()
+    return jsonify({'combo': combo})
 
 @socketio.on('connect')
 def handle_connect():
