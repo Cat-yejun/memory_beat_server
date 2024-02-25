@@ -48,7 +48,7 @@ class MemoryBeat:
 
 
         self.last_update_time = time.time()
-        self.update_interval = 5  # 동그라미 위치 업데이트 간격 (초)
+        self.update_interval = 3  # 동그라미 위치 업데이트 간격 (초)
 
         self.first_color = 'gray'
         self.second_color = 'gray'
@@ -66,6 +66,10 @@ class MemoryBeat:
         self.combo = 0
         self.rhythm = False
         self.prev_guess = False
+        
+        self.total_problems = 3
+        self.current_problem = 0
+        self.game_over = False
 
     @staticmethod
     def format_number(number):
@@ -88,19 +92,39 @@ class MemoryBeat:
         # 배경 이미지의 크기와 중앙 좌표를 계산
         bg_h, bg_w = background.shape[:2]
         bg_center_x = bg_w // 2
+        bg_center_y = bg_h // 2
 
         # 오버레이 이미지의 크기를 조절
         ovr_h, ovr_w = overlay.shape[:2]
         new_h, new_w = int(ovr_h * scale), int(ovr_w * scale)
         overlay_resized = cv2.resize(overlay, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
+        # # 오버레이할 위치 계산
+        # if position == "top_center":
+        #     x = bg_center_x - (new_w // 2)
+        #     y = int(bg_h * 0.2)  # 화면 상단에 약간의 여백을 두고 배치
+        # elif position == "center":
+        #     x = bg_center_x - (new_w // 2)
+        #     y = bg_center_y - (new_h)
+        # elif position == "bottom_center":
+        #     x = bg_center_x - (new_w // 2)
+        #     y = int(bg_h * 0.5)
+        # else:
+        #     x, y = 0, 0  # 기본 위치
+        
         # 오버레이할 위치 계산
         if position == "top_center":
             x = bg_center_x - (new_w // 2)
-            y = int(bg_h * 0.1)  # 화면 상단에 약간의 여백을 두고 배치
+            y = bg_center_y - (new_h // 2) - bg_h // 8 - bg_h // 18  # 화면 상단에 약간의 여백을 두고 배치
+        elif position == "center":
+            x = bg_center_x - (new_w // 2)
+            y = bg_center_y - (new_h // 2) - bg_h // 18
+        elif position == "bottom_center":
+            x = bg_center_x - (new_w // 2)
+            y = bg_center_y - (new_h // 2) + bg_h // 8 - bg_h // 18
         else:
             x, y = 0, 0  # 기본 위치
-
+        
         # 배경 이미지의 오버레이할 부분 추출
         overlay_area = background[y:y+new_h, x:x+new_w]
 
@@ -118,6 +142,17 @@ class MemoryBeat:
         combined_image = self.combine_images_horizontally(digit_images)
         self.overlay_image(frame, combined_image, position="top_center", scale=0.08)  # 스케일 조정 가능
 
+    def show_result(self, frame, result):
+        formatted_number = self.format_number(result)
+        digit_images = self.load_digit_images(formatted_number, "numbers/{}.png")
+        combined_image = self.combine_images_horizontally(digit_images)
+        self.overlay_image(frame, combined_image, position="center", scale=0.08)
+        
+        answer1 = cv2.imread("numbers/answer.png", cv2.IMREAD_UNCHANGED)
+        self.overlay_image(frame, answer1, position="top_center", scale=0.3)
+        
+        answer2 = cv2.imread("numbers/answer2.png", cv2.IMREAD_UNCHANGED)
+        self.overlay_image(frame, answer2, position="bottom_center", scale=0.25)
 
     def process_frame(self, frame, width, height):
         frame.flags.writeable = False
@@ -150,10 +185,13 @@ class MemoryBeat:
                 
             self.last_update_time = time.time()
             self.rhythm = False
+            self.current_problem += 1
         
-            if(self.prev_guess == False):
-                self.combo = 0
-            else:
+            # if(self.prev_guess == False):
+            #     self.combo = 0
+            # else:
+            #     self.combo += 1
+            if(self.prev_guess == True):
                 self.combo += 1
         
         cv2.circle(frame, self.first_circle_pos, self.circle_radius, self.first_circle_color, -1)
@@ -163,6 +201,10 @@ class MemoryBeat:
         
         frame.flags.writeable = True
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        
+        if(self.current_problem > self.total_problems):
+                self.game_over = True
+                return frame
 
         if results.multi_hand_landmarks is not None:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
@@ -232,9 +274,25 @@ class MemoryBeat:
         else:
             self.prev_guess = False
         
-        if(self.combo > 0):
-            self.show_combo(frame, self.combo)
+        # if(self.combo > 0):
+        self.show_combo(frame, self.combo)
 
         return frame
+    
+    def gameOver(self):
+        return self.game_over
+    
+    def gameOverScreen(self, frame, width, height):
+        frame.flags.writeable = False
+        frame = cv2.flip(frame, 1)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        frame.flags.writeable = True
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        
+        self.show_result(frame, self.combo)
+        
+        return frame
+        
     
    
